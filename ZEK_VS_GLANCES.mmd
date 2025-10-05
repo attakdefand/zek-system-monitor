@@ -1,0 +1,36 @@
+graph LR
+    subgraph Zek
+        Z1[Zek CLI] --> Z2[Zek TUI]
+        Z1 --> Z3[Zek Agent]
+        Z1 --> Z4[Zek Gateway]
+        
+        style Z1 fill:#4a90e2,color:white
+        style Z2 fill:#7dbcea,color:white
+        style Z3 fill:#7dbcea,color:white
+        style Z4 fill:#7dbcea,color:white
+    end
+    
+    subgraph Glances
+        G1[Glances] --> G2[Terminal UI]
+        G1 --> G3[Web UI]
+        G1 --> G4[REST API]
+        
+        style G1 fill:#4a90e2,color:white
+        style G2 fill:#7dbcea,color:white
+        style G3 fill:#7dbcea,color:white
+        style G4 fill:#7dbcea,color:white
+    end
+    
+    Z1 -- "Single Command<br/>cargo run -p zek-cli" --> ZEK_USAGE[Usage]
+    G1 -- "Single Command<br/>glances" --> GLANCES_USAGE[Usage]
+    
+    style ZEK_USAGE fill:#50c878,color:white
+    style GLANCES_USAGE fill:#50c878,color:white
+    
+    classDef zek fill:#4a90e2,stroke:#333,color:white;
+    classDef glances fill:#4a90e2,stroke:#333,color:white;
+    classDef usage fill:#50c878,stroke:#333,color:white;
+    
+    class Z1,Z2,Z3,Z4 zek
+    class G1,G2,G3,G4 glances
+    class ZEK_USAGE,GLANCES_USAGE usage

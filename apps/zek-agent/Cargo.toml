@@ -1,0 +1,12 @@
+[package]
+name = "zek-agent"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+tracing-subscriber = { workspace = true }
+tokio = { workspace = true }
+core-metrics = { path = "../../crates/core-metrics" }
+web-api = { path = "../../crates/web-api" }
+exporter-prometheus = { path = "../../crates/exporters/prometheus" }

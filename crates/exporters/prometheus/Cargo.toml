@@ -1,0 +1,10 @@
+[package]
+name = "exporter-prometheus"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true, features = ["net"] }
+core-metrics = { path = "../../core-metrics" }

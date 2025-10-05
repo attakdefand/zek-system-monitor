@@ -1,0 +1,10 @@
+[refresh]
+interval_ms = 500
+[collectors]
+cpu = true
+mem = true
+load = true
+[exporters]
+prometheus = { bind = "0.0.0.0:9100" }
+[web]
+bind = "0.0.0.0:61208"

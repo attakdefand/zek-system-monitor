@@ -1,0 +1,33 @@
+graph TD
+    A[Zek CLI<br/>Single Command] --> B[Zek TUI<br/>Terminal UI]
+    A --> C[Zek Agent<br/>Data Collection]
+    A --> D[Zek Gateway<br/>Fleet Management]
+    
+    B --> E[Real-time Metrics<br/>Visual Gauges]
+    C --> F[CPU/Memory<br/>Load Average]
+    C --> G[Prometheus<br/>Exporters]
+    D --> H[Multi-host<br/>Coordination]
+    
+    I[Configuration<br/>zek.toml] --> A
+    J[Scripts<br/>Dev Ops] --> A
+    
+    style A fill:#4a90e2,color:white
+    style B fill:#7dbcea,color:white
+    style C fill:#7dbcea,color:white
+    style D fill:#7dbcea,color:white
+    style E fill:#50c878,color:white
+    style F fill:#50c878,color:white
+    style G fill:#50c878,color:white
+    style H fill:#50c878,color:white
+    style I fill:#ff6b6b,color:white
+    style J fill:#ff6b6b,color:white
+    
+    classDef component fill:#7dbcea,stroke:#333,color:white;
+    classDef feature fill:#50c878,stroke:#333,color:white;
+    classDef utility fill:#ff6b6b,stroke:#333,color:white;
+    classDef main fill:#4a90e2,stroke:#333,color:white;
+    
+    class B,C,D component
+    class E,F,G,H feature
+    class I,J utility
+    class A main

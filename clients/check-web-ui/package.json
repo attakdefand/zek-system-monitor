@@ -1,0 +1,1 @@
+{ "name": "check-web-ui", "private": true, "scripts": { "build": "echo stub" } }

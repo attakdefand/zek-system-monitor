@@ -1,0 +1,11 @@
+[package]
+name = "zek-tui"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+tracing-subscriber = { workspace = true }
+tokio = { workspace = true }
+core-metrics = { path = "../../crates/core-metrics" }
+tui = { path = "../../crates/tui" }

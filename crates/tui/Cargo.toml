@@ -1,0 +1,12 @@
+[package]
+name = "tui"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+tokio = { workspace = true }
+ratatui = { workspace = true }
+crossterm = { workspace = true }
+core-metrics = { path = "../core-metrics" }
+tracing = { workspace = true }

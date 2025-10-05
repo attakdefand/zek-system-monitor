@@ -1,0 +1,33 @@
+graph TD
+    A[Glances<br/>Single Application] --> B[Terminal UI<br/>Curses Interface]
+    A --> C[Data Engine<br/>System Metrics]
+    A --> D[Web Interface<br/>Browser UI]
+    A --> E[REST API<br/>Programmatic Access]
+    
+    C --> F[CPU/Memory<br/>Load Average]
+    C --> G[Network/Disk<br/>I/O Stats]
+    C --> H[Processes<br/>Containers]
+    
+    I[Configuration<br/>glances.conf] --> A
+    J[Plugins<br/>Extensions] --> A
+    
+    style A fill:#4a90e2,color:white
+    style B fill:#7dbcea,color:white
+    style C fill:#7dbcea,color:white
+    style D fill:#7dbcea,color:white
+    style E fill:#7dbcea,color:white
+    style F fill:#50c878,color:white
+    style G fill:#50c878,color:white
+    style H fill:#50c878,color:white
+    style I fill:#ff6b6b,color:white
+    style J fill:#ff6b6b,color:white
+    
+    classDef component fill:#7dbcea,stroke:#333,color:white;
+    classDef feature fill:#50c878,stroke:#333,color:white;
+    classDef utility fill:#ff6b6b,stroke:#333,color:white;
+    classDef main fill:#4a90e2,stroke:#333,color:white;
+    
+    class B,C,D,E component
+    class F,G,H feature
+    class I,J utility
+    class A main

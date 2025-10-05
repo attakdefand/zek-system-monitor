@@ -1,0 +1,51 @@
+[workspace]
+members = [
+  "apps/zek-tui",
+  "apps/zek-agent",
+  "apps/zek-gateway",
+  "apps/zek-cli",
+  "crates/core-metrics",
+  "crates/web-api",
+  "crates/exporters/prometheus",
+  "crates/exporters/otlp",
+  "crates/exporters/influx",
+  "crates/exporters/jsonl",
+  "crates/exporters/sqlite_parquet",
+  "crates/probes",
+  "crates/alerts",
+  "crates/anomaly",
+  "crates/security",
+  "crates/tui",
+  "crates/utils",
+]
+resolver = "2"
+default-members = ["apps/zek-cli"]
+
+[workspace.package]
+edition = "2021"
+license = "Apache-2.0"
+rust-version = "1.81"
+
+[workspace.dependencies]
+anyhow = "1"
+thiserror = "2"
+tokio = { version = "1", features = ["rt-multi-thread","macros","signal","time"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter","fmt"] }
+axum = { version = "0.7", default-features = false, features = ["http1","http2","json","ws"] }
+hyper = "1"
+http = "1"
+metrics = "0.24"
+metrics-exporter-prometheus = "0.15"
+sysinfo = "0.30"
+procfs = "0.17"
+nix = { version = "0.29", features = ["process","sched"] }
+ratatui = "0.28"
+crossterm = "0.28"
+parking_lot = "0.12"
+crossbeam-channel = "0.5"
+chrono = { version = "0.4", features = ["clock"] }
+bytes = "1"

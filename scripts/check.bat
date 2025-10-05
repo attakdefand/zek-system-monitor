@@ -1,0 +1,3 @@
+@echo off
+echo Starting Zek system monitor...
+cargo run -p zek-cli
