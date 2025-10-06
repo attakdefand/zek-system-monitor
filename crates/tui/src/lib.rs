@@ -10,6 +10,7 @@ use tracing::debug;
 struct TuiState {
     selected_table: usize, // 0 = Network, 1 = Disk, 2 = Process, 3 = Sensors, 4 = GPU, 5 = Containers
     table_selections: [usize; 6], // Selection index for each table
+    table_states: [TableState; 6], // State for each table widget
 }
 
 impl TuiState {
@@ -17,6 +18,7 @@ impl TuiState {
         Self {
             selected_table: 0,
             table_selections: [0; 6],
+            table_states: Default::default(), // This will initialize all TableStates to default
         }
     }
     
@@ -36,6 +38,7 @@ impl TuiState {
         if max_items > 0 {
             self.table_selections[self.selected_table] = 
                 (self.table_selections[self.selected_table] + 1) % max_items;
+            self.table_states[self.selected_table].select(Some(self.table_selections[self.selected_table]));
         }
     }
     
@@ -47,6 +50,7 @@ impl TuiState {
                 } else {
                     self.table_selections[self.selected_table] - 1
                 };
+            self.table_states[self.selected_table].select(Some(self.table_selections[self.selected_table]));
         }
     }
     
@@ -81,7 +85,7 @@ fn format_throughput(bytes_per_sec: f64) -> String {
     format!("{:.1} {}", size, UNITS[unit_index])
 }
 
-fn create_network_table(networks: &[NetworkInfo], selected: bool, selection_index: usize) -> Table<'_> {
+fn create_network_table(networks: &[NetworkInfo], _selected: bool, _selection_index: usize) -> Table<'_> {
     // Debug: Print network data
     debug!("Creating network table with {} interfaces", networks.len());
     for net in networks {
@@ -99,7 +103,7 @@ fn create_network_table(networks: &[NetworkInfo], selected: bool, selection_inde
     let header = Row::new(vec!["Interface", "RX Bytes", "TX Bytes", "RX Throughput", "TX Throughput"])
         .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
     
-    let rows: Vec<Row> = networks.iter().enumerate().map(|(i, net)| {
+    let rows: Vec<Row> = networks.iter().map(|net| {
         let row_data = vec![
             net.interface.clone(),
             format_bytes(net.rx_bytes),
@@ -110,16 +114,12 @@ fn create_network_table(networks: &[NetworkInfo], selected: bool, selection_inde
         // Debug: Print row data
         debug!("Row data: {:?}", row_data);
         
-        let mut style = Style::default().fg(Color::White);
-        if selected && i == selection_index {
-            style = style.add_modifier(Modifier::REVERSED);
-        }
-        
+        let style = Style::default().fg(Color::White);
         Row::new(row_data).style(style)
     }).collect();
     
     // Create a simple table with consistent length constraints
-    let mut table = Table::new(
+    let table = Table::new(
         rows,
         [
             Constraint::Length(20),
@@ -131,19 +131,16 @@ fn create_network_table(networks: &[NetworkInfo], selected: bool, selection_inde
     )
     .header(header)
     .block(Block::default().title(format!("Network Interfaces ({})", networks.len())).borders(Borders::ALL))
-    .style(Style::default().fg(Color::White));
-    
-    if selected {
-        table = table.highlight_style(Style::default().add_modifier(Modifier::REVERSED))
-            .highlight_symbol(">> ");
-    }
+    .style(Style::default().fg(Color::White))
+    .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
+    .highlight_symbol(">> ");
     
     // Debug: Print table info
     debug!("Network table created");
     table
 }
 
-fn create_disk_table(disks: &[DiskInfo], selected: bool, selection_index: usize) -> Table<'_> {
+fn create_disk_table(disks: &[DiskInfo], _selected: bool, _selection_index: usize) -> Table<'_> {
     // Debug: Print disk data
     debug!("Creating disk table with {} disks", disks.len());
     for disk in disks {
@@ -160,7 +157,7 @@ fn create_disk_table(disks: &[DiskInfo], selected: bool, selection_index: usize)
     let header = Row::new(vec!["Mount Point", "Total", "Used", "Available", "Usage"])
         .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
     
-    let rows: Vec<Row> = disks.iter().enumerate().map(|(i, disk)| {
+    let rows: Vec<Row> = disks.iter().map(|disk| {
         let usage_color = if disk.usage_percent < 70.0 {
             Color::Green
         } else if disk.usage_percent < 85.0 {
@@ -179,16 +176,11 @@ fn create_disk_table(disks: &[DiskInfo], selected: bool, selection_index: usize)
         // Debug: Print row data
         debug!("Disk row data: {:?}", row_data);
         
-        let mut style = Style::default().fg(usage_color);
-        if selected && i == selection_index {
-            style = style.add_modifier(Modifier::REVERSED);
-        }
-        
-        Row::new(row_data).style(style)
+        Row::new(row_data).style(Style::default().fg(usage_color))
     }).collect();
     
     // Create a simple table with consistent percentage constraints
-    let mut table = Table::new(
+    let table = Table::new(
         rows,
         [
             Constraint::Percentage(30),
@@ -200,19 +192,16 @@ fn create_disk_table(disks: &[DiskInfo], selected: bool, selection_index: usize)
     )
     .header(header)
     .block(Block::default().title(format!("Disk Usage ({})", disks.len())).borders(Borders::ALL))
-    .style(Style::default().fg(Color::White));
-    
-    if selected {
-        table = table.highlight_style(Style::default().add_modifier(Modifier::REVERSED))
-            .highlight_symbol(">> ");
-    }
+    .style(Style::default().fg(Color::White))
+    .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
+    .highlight_symbol(">> ");
     
     // Debug: Print table info
     debug!("Disk table created");
     table
 }
 
-fn create_process_table(processes: &[ProcessInfo], selected: bool, selection_index: usize) -> Table<'_> {
+fn create_process_table(processes: &[ProcessInfo], _selected: bool, _selection_index: usize) -> Table<'_> {
     // Debug: Print process data
     debug!("Creating process table with {} processes", processes.len());
     for proc in processes {
@@ -229,7 +218,7 @@ fn create_process_table(processes: &[ProcessInfo], selected: bool, selection_ind
     let header = Row::new(vec!["PID", "Name", "CPU%", "Memory"])
         .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
     
-    let rows: Vec<Row> = processes.iter().enumerate().map(|(i, proc)| {
+    let rows: Vec<Row> = processes.iter().map(|proc| {
         let cpu_color = if proc.cpu_usage < 30.0 {
             Color::Green
         } else if proc.cpu_usage < 70.0 {
@@ -247,16 +236,11 @@ fn create_process_table(processes: &[ProcessInfo], selected: bool, selection_ind
         // Debug: Print row data
         debug!("Process row data: {:?}", row_data);
         
-        let mut style = Style::default().fg(cpu_color);
-        if selected && i == selection_index {
-            style = style.add_modifier(Modifier::REVERSED);
-        }
-        
-        Row::new(row_data).style(style)
+        Row::new(row_data).style(Style::default().fg(cpu_color))
     }).collect();
     
     // Create a simple table with consistent percentage constraints
-    let mut table = Table::new(
+    let table = Table::new(
         rows,
         [
             Constraint::Percentage(15),
@@ -267,19 +251,16 @@ fn create_process_table(processes: &[ProcessInfo], selected: bool, selection_ind
     )
     .header(header)
     .block(Block::default().title(format!("Top Processes ({})", processes.len())).borders(Borders::ALL))
-    .style(Style::default().fg(Color::White));
-    
-    if selected {
-        table = table.highlight_style(Style::default().add_modifier(Modifier::REVERSED))
-            .highlight_symbol(">> ");
-    }
+    .style(Style::default().fg(Color::White))
+    .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
+    .highlight_symbol(">> ");
     
     // Debug: Print table info
     debug!("Process table created");
     table
 }
 
-fn create_containers_table(containers: &[ContainerInfo], selected: bool, selection_index: usize) -> Table<'_> {
+fn create_containers_table(containers: &[ContainerInfo], _selected: bool, _selection_index: usize) -> Table<'_> {
     if containers.is_empty() {
         let rows = vec![Row::new(vec!["No container data available"])];
         return Table::new(rows, [Constraint::Percentage(100)])
@@ -289,7 +270,7 @@ fn create_containers_table(containers: &[ContainerInfo], selected: bool, selecti
     let header = Row::new(vec!["Name", "State", "CPU%", "Memory", "Network"])
         .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
     
-    let rows: Vec<Row> = containers.iter().enumerate().map(|(i, container)| {
+    let rows: Vec<Row> = containers.iter().map(|container| {
         let state_color = match container.state {
             core_metrics::collectors::containers::ContainerState::Running => Color::Green,
             core_metrics::collectors::containers::ContainerState::Paused => Color::Yellow,
@@ -305,15 +286,10 @@ fn create_containers_table(containers: &[ContainerInfo], selected: bool, selecti
             format!("RX: {} TX: {}", format_bytes(container.network_rx_bytes), format_bytes(container.network_tx_bytes)),
         ];
         
-        let mut style = Style::default().fg(state_color);
-        if selected && i == selection_index {
-            style = style.add_modifier(Modifier::REVERSED);
-        }
-        
-        Row::new(row_data).style(style)
+        Row::new(row_data).style(Style::default().fg(state_color))
     }).collect();
     
-    let mut table = Table::new(
+    let table = Table::new(
         rows,
         [
             Constraint::Percentage(25),
@@ -325,17 +301,14 @@ fn create_containers_table(containers: &[ContainerInfo], selected: bool, selecti
     )
     .header(header)
     .block(Block::default().title(format!("Containers ({})", containers.len())).borders(Borders::ALL))
-    .style(Style::default().fg(Color::White));
-    
-    if selected {
-        table = table.highlight_style(Style::default().add_modifier(Modifier::REVERSED))
-            .highlight_symbol(">> ");
-    }
+    .style(Style::default().fg(Color::White))
+    .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
+    .highlight_symbol(">> ");
     
     table
 }
 
-fn create_sensors_table(sensors: &[SensorInfo], selected: bool, selection_index: usize) -> Table<'_> {
+fn create_sensors_table(sensors: &[SensorInfo], _selected: bool, _selection_index: usize) -> Table<'_> {
     if sensors.is_empty() {
         let rows = vec![Row::new(vec!["No sensor data available"])];
         return Table::new(rows, [Constraint::Percentage(100)])
@@ -345,7 +318,7 @@ fn create_sensors_table(sensors: &[SensorInfo], selected: bool, selection_index:
     let header = Row::new(vec!["Component", "Label", "Temperature"])
         .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
     
-    let rows: Vec<Row> = sensors.iter().enumerate().map(|(i, sensor)| {
+    let rows: Vec<Row> = sensors.iter().map(|sensor| {
         let temp_color = if sensor.temperature < 50.0 {
             Color::Green
         } else if sensor.temperature < 70.0 {
@@ -360,15 +333,10 @@ fn create_sensors_table(sensors: &[SensorInfo], selected: bool, selection_index:
             format!("{:.1}°C", sensor.temperature),
         ];
         
-        let mut style = Style::default().fg(temp_color);
-        if selected && i == selection_index {
-            style = style.add_modifier(Modifier::REVERSED);
-        }
-        
-        Row::new(row_data).style(style)
+        Row::new(row_data).style(Style::default().fg(temp_color))
     }).collect();
     
-    let mut table = Table::new(
+    let table = Table::new(
         rows,
         [
             Constraint::Percentage(30),
@@ -378,17 +346,14 @@ fn create_sensors_table(sensors: &[SensorInfo], selected: bool, selection_index:
     )
     .header(header)
     .block(Block::default().title(format!("System Sensors ({})", sensors.len())).borders(Borders::ALL))
-    .style(Style::default().fg(Color::White));
-    
-    if selected {
-        table = table.highlight_style(Style::default().add_modifier(Modifier::REVERSED))
-            .highlight_symbol(">> ");
-    }
+    .style(Style::default().fg(Color::White))
+    .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
+    .highlight_symbol(">> ");
     
     table
 }
 
-fn create_gpu_table(gpus: &[GpuInfo], selected: bool, selection_index: usize) -> Table<'_> {
+fn create_gpu_table(gpus: &[GpuInfo], _selected: bool, _selection_index: usize) -> Table<'_> {
     if gpus.is_empty() {
         let rows = vec![Row::new(vec!["No GPU data available"])];
         return Table::new(rows, [Constraint::Percentage(100)])
@@ -398,7 +363,7 @@ fn create_gpu_table(gpus: &[GpuInfo], selected: bool, selection_index: usize) ->
     let header = Row::new(vec!["GPU", "Usage", "Memory", "Temperature", "Fan"])
         .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
     
-    let rows: Vec<Row> = gpus.iter().enumerate().map(|(i, gpu)| {
+    let rows: Vec<Row> = gpus.iter().map(|gpu| {
         let usage_color = if gpu.usage_percent < 50.0 {
             Color::Green
         } else if gpu.usage_percent < 80.0 {
@@ -415,15 +380,10 @@ fn create_gpu_table(gpus: &[GpuInfo], selected: bool, selection_index: usize) ->
             format!("{:.1}%", gpu.fan_speed_percent),
         ];
         
-        let mut style = Style::default().fg(usage_color);
-        if selected && i == selection_index {
-            style = style.add_modifier(Modifier::REVERSED);
-        }
-        
-        Row::new(row_data).style(style)
+        Row::new(row_data).style(Style::default().fg(usage_color))
     }).collect();
     
-    let mut table = Table::new(
+    let table = Table::new(
         rows,
         [
             Constraint::Percentage(25),
@@ -435,12 +395,9 @@ fn create_gpu_table(gpus: &[GpuInfo], selected: bool, selection_index: usize) ->
     )
     .header(header)
     .block(Block::default().title(format!("GPU Usage ({})", gpus.len())).borders(Borders::ALL))
-    .style(Style::default().fg(Color::White));
-    
-    if selected {
-        table = table.highlight_style(Style::default().add_modifier(Modifier::REVERSED))
-            .highlight_symbol(">> ");
-    }
+    .style(Style::default().fg(Color::White))
+    .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
+    .highlight_symbol(">> ");
     
     table
 }
@@ -621,11 +578,11 @@ pub async fn run_tui(sup: Supervisor) -> Result<()> {
                     
                     // Network Data
                     let network_table = create_network_table(&s.network, state.selected_table == 0, state.table_selections[0]);
-                    f.render_widget(network_table, net_disk_chunks[0]);
+                    f.render_stateful_widget(network_table, net_disk_chunks[0], &mut state.table_states[0]);
                     
                     // Disk Data
                     let disk_table = create_disk_table(&s.disks, state.selected_table == 1, state.table_selections[1]);
-                    f.render_widget(disk_table, net_disk_chunks[1]);
+                    f.render_stateful_widget(disk_table, net_disk_chunks[1], &mut state.table_states[1]);
                     
                     // Combined Sensors and GPU
                     let sensor_gpu_chunks = Layout::default()
@@ -635,11 +592,11 @@ pub async fn run_tui(sup: Supervisor) -> Result<()> {
                     
                     // Sensors Data
                     let sensors_table = create_sensors_table(&s.sensors, state.selected_table == 2, state.table_selections[2]);
-                    f.render_widget(sensors_table, sensor_gpu_chunks[0]);
+                    f.render_stateful_widget(sensors_table, sensor_gpu_chunks[0], &mut state.table_states[2]);
                     
                     // GPU Data
                     let gpu_table = create_gpu_table(&s.gpus, state.selected_table == 3, state.table_selections[3]);
-                    f.render_widget(gpu_table, sensor_gpu_chunks[1]);
+                    f.render_stateful_widget(gpu_table, sensor_gpu_chunks[1], &mut state.table_states[3]);
                     
                     // Combined Containers and Process Data
                     let cont_proc_chunks = Layout::default()
@@ -649,11 +606,11 @@ pub async fn run_tui(sup: Supervisor) -> Result<()> {
                     
                     // Containers Data
                     let containers_table = create_containers_table(&s.containers, state.selected_table == 4, state.table_selections[4]);
-                    f.render_widget(containers_table, cont_proc_chunks[0]);
+                    f.render_stateful_widget(containers_table, cont_proc_chunks[0], &mut state.table_states[4]);
                     
                     // Process Data
                     let process_table = create_process_table(&s.top_processes, state.selected_table == 5, state.table_selections[5]);
-                    f.render_widget(process_table, cont_proc_chunks[1]);
+                    f.render_stateful_widget(process_table, cont_proc_chunks[1], &mut state.table_states[5]);
                 } else {
                     // Use full layout for larger terminals
                     // CPU and Memory row
@@ -742,27 +699,27 @@ pub async fn run_tui(sup: Supervisor) -> Result<()> {
                     
                     // Network Data - using proper table widget
                     let network_table = create_network_table(&s.network, state.selected_table == 0, state.table_selections[0]);
-                    f.render_widget(network_table, chunks[4]);
+                    f.render_stateful_widget(network_table, chunks[4], &mut state.table_states[0]);
                     
                     // Disk Data - using proper table widget
                     let disk_table = create_disk_table(&s.disks, state.selected_table == 1, state.table_selections[1]);
-                    f.render_widget(disk_table, chunks[5]);
+                    f.render_stateful_widget(disk_table, chunks[5], &mut state.table_states[1]);
                     
                     // Sensors Data
                     let sensors_table = create_sensors_table(&s.sensors, state.selected_table == 2, state.table_selections[2]);
-                    f.render_widget(sensors_table, chunks[6]);
+                    f.render_stateful_widget(sensors_table, chunks[6], &mut state.table_states[2]);
                     
                     // GPU Data
                     let gpu_table = create_gpu_table(&s.gpus, state.selected_table == 3, state.table_selections[3]);
-                    f.render_widget(gpu_table, chunks[7]);
+                    f.render_stateful_widget(gpu_table, chunks[7], &mut state.table_states[3]);
                     
                     // Containers Data
                     let containers_table = create_containers_table(&s.containers, state.selected_table == 4, state.table_selections[4]);
-                    f.render_widget(containers_table, chunks[8]);
+                    f.render_stateful_widget(containers_table, chunks[8], &mut state.table_states[4]);
                     
                     // Process Data - using proper table widget
                     let process_table = create_process_table(&s.top_processes, state.selected_table == 5, state.table_selections[5]);
-                    f.render_widget(process_table, chunks[9]);
+                    f.render_stateful_widget(process_table, chunks[9], &mut state.table_states[5]);
                 }
             } else {
                 let loading = Paragraph::new("Initializing system metrics...")
@@ -820,6 +777,7 @@ pub async fn run_tui(sup: Supervisor) -> Result<()> {
                 }
             }
         }
+
     }
     
     terminal::disable_raw_mode()?;
