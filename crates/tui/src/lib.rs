@@ -5,6 +5,56 @@ use ratatui::{prelude::*, widgets::*};
 use std::{io, time::Duration};
 use tracing::debug;
 
+// State struct to track which table is selected and the selection index
+#[derive(Debug, Clone)]
+struct TuiState {
+    selected_table: usize, // 0 = Network, 1 = Disk, 2 = Process, 3 = Sensors, 4 = GPU, 5 = Containers
+    table_selections: [usize; 6], // Selection index for each table
+}
+
+impl TuiState {
+    fn new() -> Self {
+        Self {
+            selected_table: 0,
+            table_selections: [0; 6],
+        }
+    }
+    
+    fn next_table(&mut self) {
+        self.selected_table = (self.selected_table + 1) % 6;
+    }
+    
+    fn previous_table(&mut self) {
+        self.selected_table = if self.selected_table == 0 {
+            5
+        } else {
+            self.selected_table - 1
+        };
+    }
+    
+    fn next_item(&mut self, max_items: usize) {
+        if max_items > 0 {
+            self.table_selections[self.selected_table] = 
+                (self.table_selections[self.selected_table] + 1) % max_items;
+        }
+    }
+    
+    fn previous_item(&mut self, max_items: usize) {
+        if max_items > 0 {
+            self.table_selections[self.selected_table] = 
+                if self.table_selections[self.selected_table] == 0 {
+                    max_items - 1
+                } else {
+                    self.table_selections[self.selected_table] - 1
+                };
+        }
+    }
+    
+    fn current_selection(&self) -> usize {
+        self.table_selections[self.selected_table]
+    }
+}
+
 fn format_bytes(bytes: u64) -> String {
     const UNITS: &[&str] = &["B", "KiB", "MiB", "GiB", "TiB"];
     let mut size = bytes as f64;
@@ -31,7 +81,7 @@ fn format_throughput(bytes_per_sec: f64) -> String {
     format!("{:.1} {}", size, UNITS[unit_index])
 }
 
-fn create_network_table(networks: &[NetworkInfo]) -> Table<'_> {
+fn create_network_table(networks: &[NetworkInfo], selected: bool, selection_index: usize) -> Table<'_> {
     // Debug: Print network data
     debug!("Creating network table with {} interfaces", networks.len());
     for net in networks {
@@ -49,7 +99,7 @@ fn create_network_table(networks: &[NetworkInfo]) -> Table<'_> {
     let header = Row::new(vec!["Interface", "RX Bytes", "TX Bytes", "RX Throughput", "TX Throughput"])
         .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
     
-    let rows: Vec<Row> = networks.iter().map(|net| {
+    let rows: Vec<Row> = networks.iter().enumerate().map(|(i, net)| {
         let row_data = vec![
             net.interface.clone(),
             format_bytes(net.rx_bytes),
@@ -59,11 +109,17 @@ fn create_network_table(networks: &[NetworkInfo]) -> Table<'_> {
         ];
         // Debug: Print row data
         debug!("Row data: {:?}", row_data);
-        Row::new(row_data).style(Style::default().fg(Color::White))
+        
+        let mut style = Style::default().fg(Color::White);
+        if selected && i == selection_index {
+            style = style.add_modifier(Modifier::REVERSED);
+        }
+        
+        Row::new(row_data).style(style)
     }).collect();
     
     // Create a simple table with consistent length constraints
-    let table = Table::new(
+    let mut table = Table::new(
         rows,
         [
             Constraint::Length(20),
@@ -75,16 +131,19 @@ fn create_network_table(networks: &[NetworkInfo]) -> Table<'_> {
     )
     .header(header)
     .block(Block::default().title(format!("Network Interfaces ({})", networks.len())).borders(Borders::ALL))
-    .style(Style::default().fg(Color::White))
-    .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
-    .highlight_symbol(">> ");
+    .style(Style::default().fg(Color::White));
+    
+    if selected {
+        table = table.highlight_style(Style::default().add_modifier(Modifier::REVERSED))
+            .highlight_symbol(">> ");
+    }
     
     // Debug: Print table info
     debug!("Network table created");
     table
 }
 
-fn create_disk_table(disks: &[DiskInfo]) -> Table<'_> {
+fn create_disk_table(disks: &[DiskInfo], selected: bool, selection_index: usize) -> Table<'_> {
     // Debug: Print disk data
     debug!("Creating disk table with {} disks", disks.len());
     for disk in disks {
@@ -101,7 +160,7 @@ fn create_disk_table(disks: &[DiskInfo]) -> Table<'_> {
     let header = Row::new(vec!["Mount Point", "Total", "Used", "Available", "Usage"])
         .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
     
-    let rows: Vec<Row> = disks.iter().map(|disk| {
+    let rows: Vec<Row> = disks.iter().enumerate().map(|(i, disk)| {
         let usage_color = if disk.usage_percent < 70.0 {
             Color::Green
         } else if disk.usage_percent < 85.0 {
@@ -119,11 +178,17 @@ fn create_disk_table(disks: &[DiskInfo]) -> Table<'_> {
         ];
         // Debug: Print row data
         debug!("Disk row data: {:?}", row_data);
-        Row::new(row_data).style(Style::default().fg(usage_color))
+        
+        let mut style = Style::default().fg(usage_color);
+        if selected && i == selection_index {
+            style = style.add_modifier(Modifier::REVERSED);
+        }
+        
+        Row::new(row_data).style(style)
     }).collect();
     
     // Create a simple table with consistent percentage constraints
-    let table = Table::new(
+    let mut table = Table::new(
         rows,
         [
             Constraint::Percentage(30),
@@ -135,16 +200,19 @@ fn create_disk_table(disks: &[DiskInfo]) -> Table<'_> {
     )
     .header(header)
     .block(Block::default().title(format!("Disk Usage ({})", disks.len())).borders(Borders::ALL))
-    .style(Style::default().fg(Color::White))
-    .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
-    .highlight_symbol(">> ");
+    .style(Style::default().fg(Color::White));
+    
+    if selected {
+        table = table.highlight_style(Style::default().add_modifier(Modifier::REVERSED))
+            .highlight_symbol(">> ");
+    }
     
     // Debug: Print table info
     debug!("Disk table created");
     table
 }
 
-fn create_process_table(processes: &[ProcessInfo]) -> Table<'_> {
+fn create_process_table(processes: &[ProcessInfo], selected: bool, selection_index: usize) -> Table<'_> {
     // Debug: Print process data
     debug!("Creating process table with {} processes", processes.len());
     for proc in processes {
@@ -161,7 +229,7 @@ fn create_process_table(processes: &[ProcessInfo]) -> Table<'_> {
     let header = Row::new(vec!["PID", "Name", "CPU%", "Memory"])
         .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
     
-    let rows: Vec<Row> = processes.iter().map(|proc| {
+    let rows: Vec<Row> = processes.iter().enumerate().map(|(i, proc)| {
         let cpu_color = if proc.cpu_usage < 30.0 {
             Color::Green
         } else if proc.cpu_usage < 70.0 {
@@ -178,11 +246,17 @@ fn create_process_table(processes: &[ProcessInfo]) -> Table<'_> {
         ];
         // Debug: Print row data
         debug!("Process row data: {:?}", row_data);
-        Row::new(row_data).style(Style::default().fg(cpu_color))
+        
+        let mut style = Style::default().fg(cpu_color);
+        if selected && i == selection_index {
+            style = style.add_modifier(Modifier::REVERSED);
+        }
+        
+        Row::new(row_data).style(style)
     }).collect();
     
     // Create a simple table with consistent percentage constraints
-    let table = Table::new(
+    let mut table = Table::new(
         rows,
         [
             Constraint::Percentage(15),
@@ -193,16 +267,19 @@ fn create_process_table(processes: &[ProcessInfo]) -> Table<'_> {
     )
     .header(header)
     .block(Block::default().title(format!("Top Processes ({})", processes.len())).borders(Borders::ALL))
-    .style(Style::default().fg(Color::White))
-    .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
-    .highlight_symbol(">> ");
+    .style(Style::default().fg(Color::White));
+    
+    if selected {
+        table = table.highlight_style(Style::default().add_modifier(Modifier::REVERSED))
+            .highlight_symbol(">> ");
+    }
     
     // Debug: Print table info
     debug!("Process table created");
     table
 }
 
-fn create_containers_table(containers: &[ContainerInfo]) -> Table<'_> {
+fn create_containers_table(containers: &[ContainerInfo], selected: bool, selection_index: usize) -> Table<'_> {
     if containers.is_empty() {
         let rows = vec![Row::new(vec!["No container data available"])];
         return Table::new(rows, [Constraint::Percentage(100)])
@@ -212,7 +289,7 @@ fn create_containers_table(containers: &[ContainerInfo]) -> Table<'_> {
     let header = Row::new(vec!["Name", "State", "CPU%", "Memory", "Network"])
         .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
     
-    let rows: Vec<Row> = containers.iter().map(|container| {
+    let rows: Vec<Row> = containers.iter().enumerate().map(|(i, container)| {
         let state_color = match container.state {
             core_metrics::collectors::containers::ContainerState::Running => Color::Green,
             core_metrics::collectors::containers::ContainerState::Paused => Color::Yellow,
@@ -227,10 +304,16 @@ fn create_containers_table(containers: &[ContainerInfo]) -> Table<'_> {
             format_bytes(container.memory_usage_bytes),
             format!("RX: {} TX: {}", format_bytes(container.network_rx_bytes), format_bytes(container.network_tx_bytes)),
         ];
-        Row::new(row_data).style(Style::default().fg(state_color))
+        
+        let mut style = Style::default().fg(state_color);
+        if selected && i == selection_index {
+            style = style.add_modifier(Modifier::REVERSED);
+        }
+        
+        Row::new(row_data).style(style)
     }).collect();
     
-    let table = Table::new(
+    let mut table = Table::new(
         rows,
         [
             Constraint::Percentage(25),
@@ -242,14 +325,17 @@ fn create_containers_table(containers: &[ContainerInfo]) -> Table<'_> {
     )
     .header(header)
     .block(Block::default().title(format!("Containers ({})", containers.len())).borders(Borders::ALL))
-    .style(Style::default().fg(Color::White))
-    .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
-    .highlight_symbol(">> ");
+    .style(Style::default().fg(Color::White));
+    
+    if selected {
+        table = table.highlight_style(Style::default().add_modifier(Modifier::REVERSED))
+            .highlight_symbol(">> ");
+    }
     
     table
 }
 
-fn create_sensors_table(sensors: &[SensorInfo]) -> Table<'_> {
+fn create_sensors_table(sensors: &[SensorInfo], selected: bool, selection_index: usize) -> Table<'_> {
     if sensors.is_empty() {
         let rows = vec![Row::new(vec!["No sensor data available"])];
         return Table::new(rows, [Constraint::Percentage(100)])
@@ -259,7 +345,7 @@ fn create_sensors_table(sensors: &[SensorInfo]) -> Table<'_> {
     let header = Row::new(vec!["Component", "Label", "Temperature"])
         .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
     
-    let rows: Vec<Row> = sensors.iter().map(|sensor| {
+    let rows: Vec<Row> = sensors.iter().enumerate().map(|(i, sensor)| {
         let temp_color = if sensor.temperature < 50.0 {
             Color::Green
         } else if sensor.temperature < 70.0 {
@@ -273,10 +359,16 @@ fn create_sensors_table(sensors: &[SensorInfo]) -> Table<'_> {
             sensor.label.clone(),
             format!("{:.1}°C", sensor.temperature),
         ];
-        Row::new(row_data).style(Style::default().fg(temp_color))
+        
+        let mut style = Style::default().fg(temp_color);
+        if selected && i == selection_index {
+            style = style.add_modifier(Modifier::REVERSED);
+        }
+        
+        Row::new(row_data).style(style)
     }).collect();
     
-    let table = Table::new(
+    let mut table = Table::new(
         rows,
         [
             Constraint::Percentage(30),
@@ -286,14 +378,17 @@ fn create_sensors_table(sensors: &[SensorInfo]) -> Table<'_> {
     )
     .header(header)
     .block(Block::default().title(format!("System Sensors ({})", sensors.len())).borders(Borders::ALL))
-    .style(Style::default().fg(Color::White))
-    .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
-    .highlight_symbol(">> ");
+    .style(Style::default().fg(Color::White));
+    
+    if selected {
+        table = table.highlight_style(Style::default().add_modifier(Modifier::REVERSED))
+            .highlight_symbol(">> ");
+    }
     
     table
 }
 
-fn create_gpu_table(gpus: &[GpuInfo]) -> Table<'_> {
+fn create_gpu_table(gpus: &[GpuInfo], selected: bool, selection_index: usize) -> Table<'_> {
     if gpus.is_empty() {
         let rows = vec![Row::new(vec!["No GPU data available"])];
         return Table::new(rows, [Constraint::Percentage(100)])
@@ -303,7 +398,7 @@ fn create_gpu_table(gpus: &[GpuInfo]) -> Table<'_> {
     let header = Row::new(vec!["GPU", "Usage", "Memory", "Temperature", "Fan"])
         .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
     
-    let rows: Vec<Row> = gpus.iter().map(|gpu| {
+    let rows: Vec<Row> = gpus.iter().enumerate().map(|(i, gpu)| {
         let usage_color = if gpu.usage_percent < 50.0 {
             Color::Green
         } else if gpu.usage_percent < 80.0 {
@@ -319,10 +414,16 @@ fn create_gpu_table(gpus: &[GpuInfo]) -> Table<'_> {
             format!("{:.1}°C", gpu.temperature),
             format!("{:.1}%", gpu.fan_speed_percent),
         ];
-        Row::new(row_data).style(Style::default().fg(usage_color))
+        
+        let mut style = Style::default().fg(usage_color);
+        if selected && i == selection_index {
+            style = style.add_modifier(Modifier::REVERSED);
+        }
+        
+        Row::new(row_data).style(style)
     }).collect();
     
-    let table = Table::new(
+    let mut table = Table::new(
         rows,
         [
             Constraint::Percentage(25),
@@ -334,9 +435,12 @@ fn create_gpu_table(gpus: &[GpuInfo]) -> Table<'_> {
     )
     .header(header)
     .block(Block::default().title(format!("GPU Usage ({})", gpus.len())).borders(Borders::ALL))
-    .style(Style::default().fg(Color::White))
-    .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
-    .highlight_symbol(">> ");
+    .style(Style::default().fg(Color::White));
+    
+    if selected {
+        table = table.highlight_style(Style::default().add_modifier(Modifier::REVERSED))
+            .highlight_symbol(">> ");
+    }
     
     table
 }
@@ -349,6 +453,7 @@ pub async fn run_tui(sup: Supervisor) -> Result<()> {
     let mut term = Terminal::new(backend)?;
     
     let mut last: Option<Snapshot> = None;
+    let mut state = TuiState::new();
     
     loop {
         while let Ok(s) = sup.subscribe().try_recv() {
@@ -515,11 +620,11 @@ pub async fn run_tui(sup: Supervisor) -> Result<()> {
                         .split(chunks[4]);
                     
                     // Network Data
-                    let network_table = create_network_table(&s.network);
+                    let network_table = create_network_table(&s.network, state.selected_table == 0, state.table_selections[0]);
                     f.render_widget(network_table, net_disk_chunks[0]);
                     
                     // Disk Data
-                    let disk_table = create_disk_table(&s.disks);
+                    let disk_table = create_disk_table(&s.disks, state.selected_table == 1, state.table_selections[1]);
                     f.render_widget(disk_table, net_disk_chunks[1]);
                     
                     // Combined Sensors and GPU
@@ -529,11 +634,11 @@ pub async fn run_tui(sup: Supervisor) -> Result<()> {
                         .split(chunks[5]);
                     
                     // Sensors Data
-                    let sensors_table = create_sensors_table(&s.sensors);
+                    let sensors_table = create_sensors_table(&s.sensors, state.selected_table == 2, state.table_selections[2]);
                     f.render_widget(sensors_table, sensor_gpu_chunks[0]);
                     
                     // GPU Data
-                    let gpu_table = create_gpu_table(&s.gpus);
+                    let gpu_table = create_gpu_table(&s.gpus, state.selected_table == 3, state.table_selections[3]);
                     f.render_widget(gpu_table, sensor_gpu_chunks[1]);
                     
                     // Combined Containers and Process Data
@@ -543,11 +648,11 @@ pub async fn run_tui(sup: Supervisor) -> Result<()> {
                         .split(chunks[6]);
                     
                     // Containers Data
-                    let containers_table = create_containers_table(&s.containers);
+                    let containers_table = create_containers_table(&s.containers, state.selected_table == 4, state.table_selections[4]);
                     f.render_widget(containers_table, cont_proc_chunks[0]);
                     
                     // Process Data
-                    let process_table = create_process_table(&s.top_processes);
+                    let process_table = create_process_table(&s.top_processes, state.selected_table == 5, state.table_selections[5]);
                     f.render_widget(process_table, cont_proc_chunks[1]);
                 } else {
                     // Use full layout for larger terminals
@@ -636,27 +741,27 @@ pub async fn run_tui(sup: Supervisor) -> Result<()> {
                     f.render_widget(cpu_widget, chunks[3]);
                     
                     // Network Data - using proper table widget
-                    let network_table = create_network_table(&s.network);
+                    let network_table = create_network_table(&s.network, state.selected_table == 0, state.table_selections[0]);
                     f.render_widget(network_table, chunks[4]);
                     
                     // Disk Data - using proper table widget
-                    let disk_table = create_disk_table(&s.disks);
+                    let disk_table = create_disk_table(&s.disks, state.selected_table == 1, state.table_selections[1]);
                     f.render_widget(disk_table, chunks[5]);
                     
                     // Sensors Data
-                    let sensors_table = create_sensors_table(&s.sensors);
+                    let sensors_table = create_sensors_table(&s.sensors, state.selected_table == 2, state.table_selections[2]);
                     f.render_widget(sensors_table, chunks[6]);
                     
                     // GPU Data
-                    let gpu_table = create_gpu_table(&s.gpus);
+                    let gpu_table = create_gpu_table(&s.gpus, state.selected_table == 3, state.table_selections[3]);
                     f.render_widget(gpu_table, chunks[7]);
                     
                     // Containers Data
-                    let containers_table = create_containers_table(&s.containers);
+                    let containers_table = create_containers_table(&s.containers, state.selected_table == 4, state.table_selections[4]);
                     f.render_widget(containers_table, chunks[8]);
                     
                     // Process Data - using proper table widget
-                    let process_table = create_process_table(&s.top_processes);
+                    let process_table = create_process_table(&s.top_processes, state.selected_table == 5, state.table_selections[5]);
                     f.render_widget(process_table, chunks[9]);
                 }
             } else {
@@ -666,8 +771,11 @@ pub async fn run_tui(sup: Supervisor) -> Result<()> {
                 f.render_widget(loading, chunks[1]);
             }
             
-            // Footer
-            let footer = Paragraph::new("Press 'q' or ESC to quit | Arrows to navigate tables")
+            // Footer with current selection info
+            let table_names = ["Network", "Disk", "Sensors", "GPU", "Containers", "Processes"];
+            let footer_text = format!("Press 'q' or ESC to quit | Tab: Switch tables | ↑/↓: Navigate | Selected: {}", 
+                                     table_names[state.selected_table]);
+            let footer = Paragraph::new(footer_text)
                 .alignment(Alignment::Center)
                 .style(Style::default().fg(Color::Gray));
             f.render_widget(footer, *chunks.last().unwrap());
@@ -676,8 +784,39 @@ pub async fn run_tui(sup: Supervisor) -> Result<()> {
         if event::poll(Duration::from_millis(100))? {
             if let event::Event::Key(k) = event::read()? {
                 use event::KeyCode::*;
-                if matches!(k.code, Char('q') | Esc) {
-                    break;
+                match k.code {
+                    Char('q') | Esc => break,
+                    Tab => state.next_table(),
+                    BackTab => state.previous_table(),
+                    Down => {
+                        if let Some(s) = &last {
+                            let max_items = match state.selected_table {
+                                0 => s.network.len(),
+                                1 => s.disks.len(),
+                                2 => s.sensors.len(),
+                                3 => s.gpus.len(),
+                                4 => s.containers.len(),
+                                5 => s.top_processes.len(),
+                                _ => 0,
+                            };
+                            state.next_item(max_items);
+                        }
+                    },
+                    Up => {
+                        if let Some(s) = &last {
+                            let max_items = match state.selected_table {
+                                0 => s.network.len(),
+                                1 => s.disks.len(),
+                                2 => s.sensors.len(),
+                                3 => s.gpus.len(),
+                                4 => s.containers.len(),
+                                5 => s.top_processes.len(),
+                                _ => 0,
+                            };
+                            state.previous_item(max_items);
+                        }
+                    },
+                    _ => {}
                 }
             }
         }
