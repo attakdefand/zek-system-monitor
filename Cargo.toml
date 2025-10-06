@@ -11,6 +11,7 @@ members = [
   "crates/exporters/influx",
   "crates/exporters/jsonl",
   "crates/exporters/sqlite_parquet",
+  "crates/exporters/csv",
   "crates/probes",
   "crates/alerts",
   "crates/anomaly",

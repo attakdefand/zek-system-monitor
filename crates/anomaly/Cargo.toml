@@ -8,3 +8,4 @@ anyhow = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true }
 tracing = { workspace = true }
+core-metrics = { path = "../core-metrics" }
