@@ -134,10 +134,8 @@ impl Snapshot{
     // we would use platform-specific APIs or crates like `nvml` for NVIDIA GPUs
     let gpus: Vec<GpuInfo> = Vec::new();
     
-    // Collect connection information - sysinfo doesn't directly provide connection info
-    // For now, we'll leave this as an empty vector, but in a complete implementation
-    // we would use platform-specific APIs or crates like `socket2` or `netstat` approach
-    let connections: Vec<ConnectionInfo> = Vec::new();
+    // Collect connection information
+    let connections: Vec<ConnectionInfo> = super::connections::collect_connections();
     
     // Collect container information - sysinfo doesn't directly provide container info
     // For now, we'll leave this as an empty vector, but in a complete implementation

@@ -120,6 +120,39 @@ cargo test --features integration
 3. Check data refreshes at expected intervals
 4. Test all keyboard controls (q to quit, arrow keys for navigation)
 
+### Network Monitoring Feature Testing
+
+#### Real-time Interface Statistics Testing
+1. Run the network test utility:
+   ```bash
+   cargo run -p core-metrics --bin network_test
+   ```
+2. Verify that network interface statistics are displayed including:
+   - Interface names
+   - RX/TX bytes
+   - RX/TX packets
+   - RX/TX errors
+   - Throughput calculations
+
+#### Network Throughput Testing
+1. Run the throughput debug utility:
+   ```bash
+   cargo run -p core-metrics --bin throughput_debug
+   ```
+2. Verify that throughput values are calculated correctly in bytes/second
+3. Check that values update in real-time as network activity changes
+
+#### Connection Tracking Testing
+1. Run the connection tracking test:
+   ```bash
+   cargo run -p core-metrics --bin connection_test
+   ```
+2. On Linux systems, verify that active connections are displayed including:
+   - Protocol (TCP/UDP)
+   - Local and remote addresses
+   - Connection state
+3. On Windows/macOS, note that connection tracking is not yet implemented
+
 ### Long-term Feature Testing
 
 #### Web-based Dashboard Testing
@@ -241,6 +274,27 @@ All long-term goals from FEATURE_ROADMAP.md have been implemented:
 - Real-time configuration updates
 - Validation support
 
+## Network Monitoring Features Status
+
+All network monitoring features from FEATURE_ROADMAP.md lines 39-46 have been implemented:
+
+### ✅ Real-time Interface Statistics
+- Interface name identification
+- Byte transfer statistics (RX/TX)
+- Packet count statistics (RX/TX)
+- Error count tracking (RX/TX)
+
+### ✅ Network Throughput Monitoring
+- Real-time throughput calculation (bytes/second)
+- Accurate delta calculations between snapshots
+- Support for all network interfaces
+
+### ✅ Connection Tracking
+- Protocol identification (TCP/UDP)
+- Local and remote address tracking
+- Connection state monitoring
+- Platform-specific implementations (Linux complete, Windows/macOS in progress)
+
 ## Contact Support
 
 If you encounter issues not covered in this guide, please:
@@ -261,3 +315,8 @@ If you encounter issues not covered in this guide, please:
 - Added testing procedures for long-term features
 - Updated feature implementation status
 - Added comprehensive testing examples
+
+### v1.2.0
+- Added detailed network monitoring feature testing procedures
+- Updated network monitoring implementation status
+- Added platform-specific considerations for connection tracking
